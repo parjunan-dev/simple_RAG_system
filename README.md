@@ -1,20 +1,68 @@
-# 🚀 RAG Knowledge Base Setup Guide
+# **Simple RAG System (Beginner-Friendly Guide)**
 
-This guide outlines the steps for installing dependencies, preparing your data, and running the scripts to build and test your **Retrieval-Augmented Generation (RAG)** system.
+This project shows how to build a **minimal Retrieval-Augmented Generation (RAG)** pipeline from scratch using:
+
+* **Python**
+* **OpenAI embeddings**
+* **FAISS** (vector search)
+* **Local documents** (PDF, TXT, MD)
+* **Basic chunking + retrieval**
+
+The goal is to help any beginner understand the *core fundamentals* of RAG without heavy frameworks.
 
 ---
 
-## 1. ⚙️ Install Dependencies
+## **What This RAG System Does**
 
-Install all required Python packages using `pip`.
+1. Loads your knowledge-base documents
+2. Extracts text (PDF, TXT, MD)
+3. Splits text into 500-character chunks
+4. Creates embeddings using OpenAI
+5. Stores them in a FAISS index
+6. Takes a user question
+7. Retrieves the top-3 most relevant chunks
+8. Builds a “context + question” RAG prompt
+9. Generates a grounded answer using `gpt-4o-mini`
+
+This is the minimal workflow behind most real RAG systems.
+
+---
+
+# 🧩 **1. Folder Structure**
+
+```
+your-project/
+    data/                # Put PDFs, TXT, MD files here
+    load_docs.py
+    chunker.py
+    embedder.py
+    build_index.py
+    query.py
+    rag_answer.py
+    requirements.txt
+    README.md
+```
+
+---
+
+# **2. Setup**
+
+### Create venv
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### Install requirements
 
 ```bash
 pip install -r requirements.txt
-````
+```
 
-**Example `requirements.txt` contents:**
+Your `requirements.txt` should contain:
 
-```text
+```
 pypdf
 pandas
 python-dotenv
@@ -24,76 +72,129 @@ openai
 numpy
 ```
 
------
+### Add `.env`
 
-## 2\. 🔑 Add `.env` File
-
-Create a file named **`.env`** in your project's root directory and add your OpenAI API key.
-
-```bash
-# .env file content
-OPENAI_API_KEY=your_api_key_here
+```
+OPENAI_API_KEY=your_key_here
 ```
 
------
+---
 
-## 3\. 📄 Prepare Your Data
+# **3. Prepare Your Data**
 
-Place all your Knowledge Base (KB) documents inside a directory named **`data/`**.
+Place your documents inside:
 
-  * **Required directory structure:** `/data/`
-  * **Supported formats:** `.pdf`, `.txt`, `.md`
+```
+data/
+```
 
------
+Supported formats (for this beginner version):
 
-## 🛠️ Build and Test the System
+* `.pdf`
+* `.txt`
+* `.md`
 
-## 4\. 🧠 Build the Embedding Index (One-Time Setup)
+---
 
-This step loads documents, splits them, generates embeddings, and builds the FAISS index.
+# **4. Build the Index (One-Time Operation)**
 
-  * **Run the script:**
-    ```bash
-    python build_index.py
-    ```
-  * **Expected output on success:**
-    ```
-    Total chunks: XXX
-    Index built and saved!
-    ```
+This step:
 
------
+* loads the docs
+* chunks them
+* creates embeddings
+* saves the FAISS index
 
-## 5\. 🔍 Test Retrieval Only (Semantic Search)
+Run:
 
-Run this to confirm that semantic search is working.
+```bash
+python build_index.py
+```
 
-  * **Run the script:**
-    ```bash
-    python query.py
-    ```
-  * **Example query:** `How do I create an AI Agent?`
+You will see:
 
------
+```
+Total chunks: XXX
+Index built and saved!
+```
 
-## 6\. 🤖 Full RAG Answer Generation
+This generates:
 
-This combines retrieval and the LLM (`gpt-4o-mini`) to generate a grounded answer.
+* `faiss_index.bin`
+* `chunks.pkl`
 
-  * **Run the script:**
-    ```bash
-    python rag_answer.py
-    ```
-  * **Example interaction:** `Ask a question: How do I configure intents?`
+---
 
------
+# **5. Test Retrieval Only**
 
-## 💡 Beginner Summary — How It Works
+Retrieve the top-3 matching chunks:
 
-| Script | Function | Key Technology |
-| :--- | :--- | :--- |
-| `load_docs.py` | Text Extraction | `pypdf` |
-| `chunker.py` | Text Splitting | 500-character chunks (+50 overlap) |
-| `embedder.py` | Embedding Generation | OpenAI `text-embedding-3-small` |
-| `build_index.py` | Index Creation | **FAISS L2 index** |
-| `rag_answer.py` | Answer Generation | **`gpt-4o-mini`** |
+```bash
+python query.py
+```
+
+Example query:
+
+```
+How do I create an AI Agent?
+```
+
+This prints the retrieved chunk texts.
+
+---
+
+# **6. Full RAG Answer**
+
+This:
+
+* retrieves relevant chunks
+* builds a context block
+* asks `gpt-4o-mini` to answer using ONLY that context
+
+Run:
+
+```bash
+python rag_answer.py
+```
+
+Example:
+
+```
+Ask a question: How do I configure intents?
+```
+
+---
+
+# **How This RAG Works (Beginner Summary)**
+
+1. **load_docs.py**
+   Extract text from PDFs / TXT / MD.
+
+2. **chunker.py**
+   Split text into **500-character chunks** with **50-character overlap**.
+
+3. **embedder.py**
+   Create embeddings using
+   **OpenAI `text-embedding-3-small` (1536 dims)**.
+
+4. **build_index.py**
+   Store embeddings in a **FAISS L2** index.
+
+5. **query.py**
+   Embed the user query with the **same model** and find top-3 closest chunks.
+
+6. **rag_answer.py**
+   Build a structured RAG prompt and generate a grounded answer with **gpt-4o-mini**.
+
+That's it — the simplest end-to-end RAG.
+
+---
+
+# **You’re Done**
+
+You now have a working RAG pipeline built **entirely from scratch**, with:
+
+* no LangChain
+* no heavy abstractions
+* complete transparency
+* fundamentals you can port anywhere (Webex, internal tools, custom agents, etc.)
