@@ -28,7 +28,7 @@ This is the minimal workflow behind most real RAG systems.
 
 ---
 
-# 🧩 **1. Folder Structure**
+# **1. Folder Structure**
 
 ```
 your-project/
