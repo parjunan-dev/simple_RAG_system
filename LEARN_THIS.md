@@ -8,300 +8,264 @@ This page answers the *why* and *how* behind every decision in this RAG system. 
 
 ### Q: What is Retrieval-Augmented Generation (RAG)?
 
-**The short answer:**
-RAG is a pattern where you retrieve relevant context from a document database, then feed that context + user question to an LLM. Instead of the LLM guessing from training data, it grounds its answer in *your actual documents*.
+**Simple answer:**
+You have documents. A user asks a question. Your system finds the relevant documents, gives them to an LLM, and the LLM answers based on those documents—not from memory.
 
-**Why it matters:**
-- Reduces hallucinations (LLM sticks to your docs)
-- Works on proprietary/recent data (no retraining needed)
-- Scalable (add more docs, same system)
-- Transparent (you can see *which* docs informed the answer)
+**Why?**
+- The LLM can answer questions about *your specific docs* (not just general knowledge)
+- You can see *which docs* it used (transparent)
+- Less hallucinating (it's grounded in what's actually written)
 
-**Real use case:** Customer service bot for your company's docs. User asks "How do I configure intents?" → system retrieves your intent guide → bot answers from that guide, not generic training data.
+**Real example:** A customer service chatbot that answers questions about your company's Webex setup guides. User asks "How do I set up skill-based routing?" → bot finds your routing guide → bot answers from that guide.
 
 ---
 
-### Q: Why embeddings? Why not just keyword search?
+### Q: Why use embeddings? Why not just search for keywords?
 
-**The problem with keyword search:**
-- "How do I set up voicebot?" matches nothing if your docs say "configure automated agent"
-- Synonym/semantic mismatch kills relevance
-- Poor on questions phrased differently than your docs
+**The problem with keywords:**
+- User asks: "How do I set up an automated agent?"
+- Your docs say: "Configure voicebot"
+- Keyword search fails (no word match)
+- User gets no answer
 
 **How embeddings fix it:**
-- Convert text → vector (1536 dimensions for OpenAI `text-embedding-3-small`)
-- Vectors capture *meaning*, not just words
-- "How do I set up voicebot?" and "Configure automated agent" → similar vectors → match found
-- Can find semantically related content even with zero keyword overlap
+- Convert text to numbers (a "vector")
+- Similar meaning = similar vectors
+- "Set up automated agent" and "Configure voicebot" get similar vectors → match found
+- Works even if words are totally different
 
-**When to use keyword instead:**
-- Exact match is critical (legal doc references, product IDs)
-- Your docs are highly structured/tagged already
-- Speed is more important than semantic accuracy
+**When to use keywords instead:**
+- Exact match matters (like looking for a specific product ID: "WxCC-12345")
+- Your docs are short and well-labeled (metadata search is better)
 
-We use embeddings because semantic search handles paraphrasing and synonyms. For a production system, we'd use hybrid search: embeddings for semantic matching (handling paraphrasing), combined with BM25 keyword scoring (ensuring exact terms appear). This avoids irrelevant-but-semantically-similar results while catching paraphrased questions.
+**For production:** Use both. Search by meaning (embeddings) AND by keywords. Together they're stronger.
 
 ---
 
-### Q: What's the difference between chunking strategies?
+### Q: Why split text into chunks?
 
-**This project uses: Fixed-size chunks (500 chars, 50-char overlap)**
+**The problem:** Your PDF is 50 pages. User asks "How do I configure intents?" You can't feed all 50 pages to the LLM (too slow, too expensive, LLM gets confused).
 
-**Why that choice:**
-- Simple to implement (no dependencies)
-- Predictable retrieval behavior
-- Works for most documents (FAQs, guides, documentation)
-- Avoids empty or tiny chunks
+**The solution:** Split into small pieces (chunks). When user asks a question, find the 3 most relevant chunks, only send those to the LLM.
+
+**This project splits at 500 characters with 50-char overlap:**
+- 500 chars ≈ 1–2 paragraphs (readable by LLM)
+- 50-char overlap = overlap between chunks (so you don't lose context at boundaries)
+
+**Why this works:**
+- Simple (no fancy algorithms)
+- Predictable (you know how big each chunk is)
+- Works for most docs (guides, FAQs, instructions)
 
 **When it breaks:**
-- Long-form narrative (chapters lose context mid-chunk)
-- Tables/structured data (splits rows)
-- Code blocks (splits functions)
+- A table gets split in half (useless chunks)
+- A story or chapter gets chopped mid-thought
+- Code function gets split across chunks
 
-**Better alternatives:**
-
-| Strategy | Use case | Trade-off |
-|----------|----------|-----------|
-| **Semantic chunking** | Topic-coherent splits | More complex (needs clustering), slower |
-| **Recursive (hierarchy)** | Long docs with sections | Preserves document structure, but overhead |
-| **Sentence-aware** | Conversational docs | Varies chunk size, harder to predict |
-| **Page-based** | PDFs where page ≈ topic | Rigid, loses content that spans pages |
-
-**Hands-on alternative:** Build a semantic chunker using the same embeddings—split text where embedding distance > threshold. You'd detect natural breaks in meaning without hard cutoffs.
+**Better for specific cases:**
+- Code docs? Chunk by function (one function = one chunk)
+- Long stories? Chunk by section/chapter
+- Tables? Keep together, don't split
 
 ---
 
 ## **Architecture Decisions**
 
-### Q: Why FAISS and not [PostgreSQL / Pinecone / Weaviate]?
+### Q: Why FAISS for storage? What are the alternatives?
 
-**FAISS (this project):**
-- ✅ In-process, zero network latency
-- ✅ Tiny footprint (good for demos, local dev)
-- ❌ Single-threaded, not distributed
-- ❌ No persistence/durability beyond pickle
-- ❌ No metadata filtering
+**This project uses FAISS (a local vector store):**
+- ✅ Fast (search happens on your machine, no network)
+- ✅ Free
+- ✅ Good for demos
+- ❌ Dies if computer crashes (no backup)
+- ❌ Can't filter by date/author/source
 
-**PostgreSQL + pgvector:**
-- ✅ Durable, handles metadata queries
-- ✅ SQL filtering ("chunks from doc X with score > 0.8")
-- ✅ Scalable
-- ❌ Network latency
-- ❌ Overkill for a demo
+**Alternative: PostgreSQL (database with vector support):**
+- ✅ Survives crashes (saved to disk)
+- ✅ Can filter by metadata ("only show docs from 2025")
+- ✅ Handles millions of documents
+- ❌ Slightly slower (network call)
+- ❌ Need to manage a database
 
-**Pinecone / Weaviate (managed vector DBs):**
-- ✅ Fully managed, scales infinitely
-- ✅ Built-in metadata, filtering, reranking
-- ❌ Cloud dependency, API rate limits
-- ❌ Cost per query
+**Alternative: Pinecone (cloud service):**
+- ✅ Fully managed (no setup)
+- ✅ Infinitely scalable
+- ❌ Pay per query
+- ❌ Your data lives on their servers
 
-**Your decision tree in an interview:**
-> *"For a prototype or internal tool, FAISS is perfect. For a customer-facing system at Cisco handling 1000s of queries daily, I'd migrate to pgvector + PostgreSQL for durability and metadata filtering. For a multi-tenant SaaS, Pinecone or Weaviate."*
-
----
-
-### Q: How does the embedding model choice affect results?
-
-**This project uses: OpenAI `text-embedding-3-small` (1536 dims)**
-
-**Why OpenAI over sentence-transformers?**
-- Slightly better semantic quality (trained on massive web data)
-- API-based (no GPU needed locally)
-- Battle-tested at scale
-
-**Why NOT `text-embedding-3-large`?**
-- Overkill for most RAG (small is 99% as good)
-- Costs 2x, slower
-- Harder to store/search (more dimensions)
-
-**Alternative: `sentence-transformers/all-MiniLM-L6-v2`**
-- Free, runs locally (no API key)
-- Smaller vectors (384 dims), faster search
-- ~10% lower quality, but often "good enough"
-- Portfolio move: *"I chose OpenAI for this demo, but for a privacy-first system (WxCC on-prem), I'd use sentence-transformers to avoid external API calls."*
-
-**How to experiment:**
-```python
-# In embedder.py, swap the model
-from sentence_transformers import SentenceTransformer
-model = SentenceTransformer("all-MiniLM-L6-v2")
-embeddings = model.encode(text_chunks)
-```
-Then rebuild your index and compare retrieval quality.
+**In an interview, you'd say:**
+> *"I chose FAISS for this demo because it's simple and fast. For production at Cisco (handling thousands of queries daily), I'd use PostgreSQL so data is safe and searchable by metadata. For a consumer product, Pinecone makes sense because they handle scale."*
 
 ---
 
-### Q: Why retrieve top-3 chunks? Why not top-1 or top-10?
+### Q: Why OpenAI embeddings?
 
-**Trade-offs:**
+**This project uses OpenAI's embedding model:**
+- ✅ High quality (works well across domains)
+- ✅ No GPU needed (runs online)
+- ✅ Cheap ($0.02 per million tokens)
+- ❌ Needs API key
+- ❌ Depends on internet connection
 
-| Count | Pros | Cons |
-|-------|------|------|
-| **1** | Focused, concise context | Miss nuance, risk low quality |
-| **3** (this project) | Balanced—covers multiple angles | Slight verbosity in LLM context |
-| **10+** | More coverage | Token bloat, LLM attention dilution |
+**Alternative: sentence-transformers (free, local):**
+- ✅ Free
+- ✅ Runs on your machine (no API, no internet)
+- ✅ Private (your docs don't leave your computer)
+- ❌ Lower quality (not as good at finding matches)
+- ❌ Slower on laptop (needs GPU to be fast)
 
-**The real answer:** It depends on:
-- **Context window size** (gpt-4o-mini has 128k tokens; you can afford more)
-- **Chunk quality** (if your chunks are noisy, retrieve fewer)
-- **Question complexity** ("How does X work?" needs more context than "What is X?")
+**When to use local models:**
+- Privacy-first systems (banking, healthcare)
+- Offline environments (on-prem Webex deployments)
+- Tight budgets
 
-**Production approach:**
-- Start with top-3, measure answer quality + cost
-- If answers lack nuance → try top-5
-- If cost is high → drop to top-2
-- Use your eval framework (mentioned in Tier 1) to measure impact
+**When to use OpenAI:**
+- Quick prototypes (this project)
+- High quality matters more than cost
+- Internet is available
+
+---
+
+### Q: Why retrieve 3 chunks? Why not 1 or 10?
+
+**The trade-off:**
+- 1 chunk: Fast, focused, but might miss nuance
+- 3 chunks: Good balance (this project)
+- 10 chunks: More complete picture, but LLM sees more noise
+
+**Real decision:** It depends on:
+- How good are your chunks? (Noisy chunks → retrieve fewer)
+- How complex is the question? ("What is skill-based routing?" needs less context than "Compare skill-based vs. agent-based routing")
+- How much can you afford to spend? (More chunks = more tokens = more money)
+
+**How to pick:** Start with 3. If answers lack detail, try 5. If too slow, try 2. Measure quality and cost.
 
 ---
 
 ## **Hands-On: Build Your Own RAG**
 
-### Alternative Use Case #1: Code Documentation Bot
+### Use Case #1: Code Documentation
 
-**Your docs:** Python function docstrings + GitHub issues (your WxCC widget repo)
-
-**Chunks:** One function per chunk (or semantic boundaries around classes)
-
-**Query:** "How do I customize the agent desktop layout?"
+**Your docs:** Python functions and their docstrings (from your GitHub)
 
 **Changes:**
-1. `load_docs.py` → Parse Python AST instead of PDFs; extract docstring + function signature
-2. `chunker.py` → Skip it; each function is one logical unit
-3. Everything else → Same (embeddings, retrieval, RAG answer)
+1. Instead of splitting PDFs by character count, extract one chunk per function
+2. Each chunk = function name + docstring + code
+3. Rest stays the same (embeddings, retrieval, LLM answer)
 
-**Code sketch:**
-```python
-import ast
-
-def extract_functions(file_path):
-    with open(file_path) as f:
-        tree = ast.parse(f.read())
-    
-    chunks = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef):
-            docstring = ast.get_docstring(node)
-            source = ast.get_source_segment(...)  # Get function code
-            chunks.append(f"{node.name}\n{docstring}\n{source}")
-    return chunks
-```
+**Why it's better than fixed-size chunks:**
+- A function is a natural unit (you retrieve the whole function, not half)
+- Cleaner boundaries
 
 ---
 
-### Alternative Use Case #2: Cisco Webex Knowledge Base (WxCC context)
+### Use Case #2: Cisco WxCC Knowledge Base
 
-**Your docs:** Cisco WxCC admin guide PDFs, your own demos, architecture diagrams (as text)
-
-**Chunks:** Semantic chunking by feature area (Skills, Flows, Reporting, etc.)
-
-**Query:** "How do I set up skill-based routing?"
+**Your docs:** WxCC admin guides, your own demo notes, architecture diagrams
 
 **Changes:**
-1. Add metadata to chunks: `{"source": "admin_guide.pdf", "section": "Skills", "doc_version": "12.1"}`
-2. Swap FAISS → PostgreSQL + pgvector for filtering
-3. Add metadata filtering: *"Only retrieve from latest doc version"*
-4. Add re-ranking: After retrieval, score chunks by metadata relevance (e.g., prefer official docs over your notes)
+1. Tag each chunk with metadata: which doc, which version, which feature area
+2. Switch from FAISS to PostgreSQL (so you can filter: "only from the latest guide")
+3. Retrieve top-3, but prefer official docs over your notes
 
-**Why this matters for your portfolio:** This is *exactly* what UOB/OCBC would want—a RAG system that doesn't just find chunks, but understands *which* chunks are authoritative.
+**Why this matters:**
+- UOB/OCBC want to know *which* source the answer came from (official vs. your interpretation)
+- You can update guides and only retrieve new versions
 
 ---
 
-### Alternative Use Case #3: Multi-Modal RAG (Images + Text)
+### Use Case #3: Logs or Chat History
 
-**Your docs:** PDFs with tables, diagrams, screenshots
-
-**Chunks:** Extract text + encode images separately using CLIP embeddings
-
-**Query:** "What does the WxCC architecture diagram show?"
+**Your docs:** Webex contact center logs, chat transcripts, tickets
 
 **Changes:**
-1. `load_docs.py` → Use `PyPDF2` + `pdf2image` to extract images
-2. `embedder.py` → Add CLIP model for image embeddings; merge text + image embeddings in same vector space
-3. `query.py` → Search across both; retrieve images + text together
-4. `rag_answer.py` → Pass retrieved images + text to gpt-4o (which understands images)
+1. Chunk by conversation (one support ticket = one chunk)
+2. Add metadata: timestamp, customer ID, resolution status
+3. Query: "Show me tickets similar to this one" (find past solutions)
 
-**Why it's hard:** Aligning image + text in the same embedding space is non-trivial. But it's a killer differentiator for a portfolio.
-
----
-
-## **Common Mistakes & How to Avoid Them**
-
-### "My retrieval is terrible"
-
-**Debug checklist:**
-1. Are your chunks too large? (>800 chars → try 400)
-2. Are your chunks too small? (<100 chars → too fragmented)
-3. Are you retrieving top-1? (Try top-5; see if quality improves)
-4. Is your embedding model overtrained on different data? (Switch model, re-embed)
-5. Are your documents *actually* relevant? (If docs don't answer the question, RAG can't help)
-
-**Quick fix:** Build a eval set of 10 (question, expected_chunk_id) pairs. Score retrieval quality. Fix worst cases first.
+**Why it works:**
+- Chunking by conversation is natural (don't split conversations)
+- Metadata helps: "only show resolved tickets from this month"
 
 ---
 
-### "The LLM answer is hallucinating"
+## **Common Problems & How to Fix Them**
+
+### "My retrieval sucks"
+
+**Checklist:**
+1. Are chunks the right size? (Try 300 chars, then 700, see what works)
+2. Are you retrieving too few chunks? (Try top-5 instead of top-3)
+3. Do your documents actually answer the question? (If not, RAG can't help)
+4. Try a different embedding model (maybe OpenAI's quality isn't right for your domain)
+
+**How to test:** Create 10 test questions where you already know which chunks should match. See how many your system gets right.
+
+---
+
+### "The LLM is making stuff up"
 
 **Root causes:**
-1. Retrieved chunks are irrelevant (see above)
-2. Chunks are too vague or incomplete
-3. Prompt doesn't force the LLM to stay grounded
+1. You're retrieving the wrong chunks (see above)
+2. Your prompt is weak (it's letting the LLM guess)
 
-**Fix your prompt in `rag_answer.py`:**
+**Fix the prompt:**
 ```python
 prompt = f"""
-You are a helpful assistant. Answer the user's question using ONLY the context below.
-If the context doesn't contain the answer, say "I don't know" instead of guessing.
+Answer the user's question using ONLY the information below.
+If the answer is not in this information, say "I don't know".
 
-CONTEXT:
-{context}
+Information:
+{retrieved_chunks}
 
-QUESTION: {query}
+Question: {user_question}
 
-ANSWER:
+Answer:
 """
 ```
 
-The `ONLY` + `I don't know` instruction is powerful.
+The key: "ONLY" + "I don't know" forces the LLM to stick to your docs.
 
 ---
 
-### "Embeddings are expensive"
+### "This is slow"
 
-**Numbers:**
-- OpenAI `text-embedding-3-small`: $0.02 per 1M tokens (~500K chunks)
-- Your first run: $0.01–$0.05
-- Re-indexing (rare): Same
+**Where's the time going?**
+- Embedding the query: ~100ms
+- Searching FAISS: ~5ms
+- Calling the LLM: ~1–2 seconds ← Here's where 95% of time goes
 
-**This is cheap.** But in an interview:
-> *"If cost were a concern—say, indexing 1M documents—I'd cache embeddings, batch API calls, or switch to a local model (sentence-transformers) to run on-device."*
+**To speed up:**
+- Use a faster LLM (gpt-4o-mini instead of gpt-4)
+- Retrieve fewer chunks (top-2 instead of top-3)
+- Cache results (if same question asked twice, reuse answer)
 
 ---
 
-## **Interview Questions You Should Be Able to Answer**
+## **Interview Questions You Should Know**
 
-1. **Why did you chunk at 500 characters?** (Trade-off explanation)
-2. **How would you improve retrieval quality?** (Semantic chunking, re-ranking, hybrid search)
-3. **What breaks in your system at scale?** (FAISS single-threading, no persistence, metadata filtering)
-4. **How would you measure if your RAG works?** (Eval framework: precision, recall, faithfulness)
-5. **Why OpenAI embeddings vs. local?** (Quality vs. privacy/cost; you pick based on context)
-6. **How would you add metadata filtering?** (Migrate to pgvector + SQL)
-7. **What's the difference between your chunks overlapping by 50 chars?** (Preserves context at boundaries; avoids duplicate answers)
-8. **If a query returned bad results, how'd you debug?** (Check chunks, embedding quality, retrieval top-k, prompt design)
-9. **Could you adapt this to [use case X]?** (Yes, sketch it: code docs, images, logs, etc.)
-10. **What's the latency breakdown?** (Embedding query: ~50ms, FAISS search: ~5ms, LLM call: ~1–2s. LLM dominates.)
+1. **Why embeddings instead of keywords?** (Handle paraphrasing, synonyms)
+2. **Why 500-character chunks?** (Good balance between context and speed)
+3. **How would you make this system production-ready?** (Switch to PostgreSQL, add metadata filtering, eval framework)
+4. **What would break at scale?** (FAISS can't save data safely, single machine limit)
+5. **How do you know if your RAG works?** (Test with real questions, measure accuracy)
+6. **Could you adapt this to [other use case]?** (Yes—code docs, logs, chat history, images)
+7. **Why OpenAI embeddings?** (Good quality + cheap. Alternative: local models for privacy)
+8. **Why retrieve 3 chunks instead of 1?** (Trade-off: 1 is fast but risky, 3 is balanced, more is slow)
+9. **What if the LLM hallucinates?** (Retrieved chunks aren't relevant OR prompt isn't strict enough)
+10. **How would you measure latency?** (LLM call dominates; everything else is <200ms)
 
 ---
 
 ## **Next Steps**
 
-After reading this, go build:
+1. **Test your system** — Ask it 10 real questions. Do the answers make sense?
+2. **Build for a new use case** — Apply this to code docs, WxCC knowledge base, or logs
+3. **Add a web UI** — Make it clickable (Streamlit + chat interface)
+4. **Measure quality** — Write code that scores retrieval accuracy
 
-1. **Your eval harness** — 10 test questions, measure if retrieved chunks are correct
-2. **Your alternative use case** — Copy this structure, swap the docs
-3. **Your web UI** — Streamlit interface to show it off (see `streamlit/README` later)
+Then in an interview:
 
-Then, in an interview, you don't just say *"I built a RAG system."* You say:
-
-> *"I built a RAG system from scratch, understand the trade-offs at every layer (chunking, embeddings, retrieval, reranking), can measure its quality with an eval framework, and can adapt it to different domains—code, images, documents—depending on the use case."*
+> *"I built a RAG system from scratch. I understand why embeddings work, how chunking affects quality, why I chose FAISS (and when I wouldn't), and how to adapt it to different use cases. I can measure if it's working and scale it to production."*
 
 That's portfolio-grade.
