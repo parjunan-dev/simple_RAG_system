@@ -39,7 +39,7 @@ RAG is a pattern where you retrieve relevant context from a document database, t
 - Your docs are highly structured/tagged already
 - Speed is more important than semantic accuracy
 
-We use embeddings because semantic search handles paraphrasing and synonyms. For a production system at Cisco, we'd likely use hybrid search—embeddings for relevance, BM25 for exact keywords to get the best of both.
+We use embeddings because semantic search handles paraphrasing and synonyms. For a production system at Cisco, we'd likely use hybrid search embeddings for relevance, BM25 for exact keywords to get the best of both.
 
 ---
 
