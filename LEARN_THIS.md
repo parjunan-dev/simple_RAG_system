@@ -35,7 +35,7 @@ You have documents. A user asks a question. Your system finds the relevant docum
 - Works even if words are totally different
 
 **When to use keywords instead:**
-- Exact match matters (like looking for a specific product ID: "WxCC-12345")
+- Exact match matters (like looking for a specific product ID: "ABC-12345")
 - Your docs are short and well-labeled (metadata search is better)
 
 **For production:** Use both. Search by meaning (embeddings) AND by keywords. Together they're stronger.
