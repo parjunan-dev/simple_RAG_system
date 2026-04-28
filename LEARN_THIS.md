@@ -9,7 +9,7 @@ This page answers the *why* and *how* behind every decision in this RAG system. 
 ### Q: What is Retrieval-Augmented Generation (RAG)?
 
 **Simple answer:**
-You have documents. A user asks a question. Your system finds the relevant documents, gives them to an LLM, and the LLM answers based on those documents—not from memory.
+You have documents. A user asks a question. Your system finds the relevant documents, gives them to an LLM, and the LLM answers based on those documents, not from memory.
 
 **Why?**
 - The LLM can answer questions about *your specific docs* (not just general knowledge)
