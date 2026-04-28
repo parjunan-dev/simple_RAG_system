@@ -39,8 +39,7 @@ RAG is a pattern where you retrieve relevant context from a document database, t
 - Your docs are highly structured/tagged already
 - Speed is more important than semantic accuracy
 
-We use embeddings because semantic search handles paraphrasing and synonyms. For a production system, we'd likely use hybrid search embeddings for relevance for exact keywords to get the best of both.
-
+We use embeddings because semantic search handles paraphrasing and synonyms. For a production system, we'd use hybrid search: embeddings for semantic matching (handling paraphrasing), combined with BM25 keyword scoring (ensuring exact terms appear). This avoids irrelevant-but-semantically-similar results while catching paraphrased questions.
 ---
 
 ### Q: What's the difference between chunking strategies?
