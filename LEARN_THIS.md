@@ -159,9 +159,9 @@ You have documents. A user asks a question. Your system finds the relevant docum
 
 ---
 
-### Use Case #2: Cisco WxCC Knowledge Base
+### Use Case #2: Cisco Product Knowledge Base
 
-**Your docs:** WxCC admin guides, your own demo notes, architecture diagrams
+**Your docs:** Product admin guides, your own demo notes, architecture diagrams
 
 **Changes:**
 1. Tag each chunk with metadata: which doc, which version, which feature area
@@ -260,7 +260,7 @@ The key: "ONLY" + "I don't know" forces the LLM to stick to your docs.
 ## **Next Steps**
 
 1. **Test your system** — Ask it 10 real questions. Do the answers make sense?
-2. **Build for a new use case** — Apply this to code docs, WxCC knowledge base, or logs
+2. **Build for a new use case** — Apply this to code docs, Product knowledge base, or logs
 3. **Add a web UI** — Make it clickable (Streamlit + chat interface)
 4. **Measure quality** — Write code that scores retrieval accuracy
 
