@@ -1,6 +1,6 @@
-# LEARN_THIS.md — RAG System Interview Guide
+# LEARN_THIS.md — RAG System Guide
 
-This page answers the *why* and *how* behind every decision in this RAG system. Think of it as an interviewer asking you questions you should be able to answer after building this.
+This page answers the *why* and *how* behind every decision in this RAG system. Think of it as questions you should be able to answer after building this.
 
 ---
 
