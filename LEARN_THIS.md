@@ -16,7 +16,7 @@ You have documents. A user asks a question. Your system finds the relevant docum
 - You can see *which docs* it used (transparent)
 - Less hallucinating (it's grounded in what's actually written)
 
-**Real example:** A customer service chatbot that answers questions about your company's Webex setup guides. User asks "How do I set up skill-based routing?" → bot finds your routing guide → bot answers from that guide.
+**Real example:** A customer service chatbot that answers questions about your contact center product's setup guides. User asks "How do I set up skill-based routing?" → bot finds your routing guide → bot answers from that guide.
 
 ---
 
