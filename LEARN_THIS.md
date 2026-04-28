@@ -93,7 +93,7 @@ You have documents. A user asks a question. Your system finds the relevant docum
 - ❌ Pay per query
 - ❌ Your data lives on their servers
 
-**In an interview, you'd say:**
+**If asked, you'd say:**
 > *"I chose FAISS for this demo because it's simple and fast. For production at Cisco (handling thousands of queries daily), I'd use PostgreSQL so data is safe and searchable by metadata. For a consumer product, Pinecone makes sense because they handle scale."*
 
 ---
@@ -242,7 +242,7 @@ The key: "ONLY" + "I don't know" forces the LLM to stick to your docs.
 
 ---
 
-## **Interview Questions You Should Know**
+## **Questions You Should Know**
 
 1. **Why embeddings instead of keywords?** (Handle paraphrasing, synonyms)
 2. **Why 500-character chunks?** (Good balance between context and speed)
@@ -264,7 +264,7 @@ The key: "ONLY" + "I don't know" forces the LLM to stick to your docs.
 3. **Add a web UI** — Make it clickable (Streamlit + chat interface)
 4. **Measure quality** — Write code that scores retrieval accuracy
 
-Then in an interview:
+Then:
 
 > *"I built a RAG system from scratch. I understand why embeddings work, how chunking affects quality, why I chose FAISS (and when I wouldn't), and how to adapt it to different use cases. I can measure if it's working and scale it to production."*
 
